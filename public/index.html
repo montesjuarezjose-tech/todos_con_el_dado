@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Métricas Globales de Dados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes rollAnimation {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(0.9) translateY(-15px); }
+            100% { transform: rotate(360deg) scale(1) translateY(0); }
+        }
+        .animacion-lanzar { animation: rollAnimation 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center py-10 px-4 font-sans text-slate-800">
+
+    <header class="mb-8 text-center">
+        <h1 class="text-4xl md:text-5xl font-extrabold text-indigo-600 tracking-tight">Dado Global</h1>
+        <p class="text-slate-500 mt-2">Lanza el dado y mira las estadísticas de todos los jugadores</p>
+        <button onclick="window.open(window.location.pathname + '?nuevo=1', '_blank')" class="mt-4 text-xs font-bold text-indigo-400 border border-indigo-200 px-3 py-1 rounded-full hover:bg-indigo-50 transition-colors">Simular nuevo jugador (Abrir pestaña)</button>
+    </header>
+
+    <main class="w-full max-w-3xl flex flex-col items-center gap-10">
+        
+        <section class="bg-white rounded-3xl shadow-lg p-8 w-full border border-slate-100 text-center">
+            <h2 class="text-lg font-bold text-slate-400 uppercase tracking-widest mb-2">Lanzamientos Totales Globales</h2>
+            <div class="text-7xl font-black text-slate-800 mb-8" id="total-text">0</div>
+            
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="contenedor-stats">
+                </div>
+        </section>
+
+        <section class="flex flex-col items-center">
+            <button id="btn-dado" class="focus:outline-none focus:ring-4 ring-indigo-200 rounded-[2rem] bg-white shadow-2xl p-2 transition-transform active:scale-95">
+                <div id="dado-svg" class="w-40 h-40 text-indigo-600"></div>
+            </button>
+            <div id="mensaje" class="mt-4 text-xl font-medium text-indigo-600 h-8 opacity-0 transition-opacity duration-300"></div>
+        </section>
+
+    </main>
+
+    <script>
+        const svgs = {
+            1: '<svg viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#f8fafc" stroke="currentColor" stroke-width="3"/><circle cx="50" cy="50" r="10" fill="currentColor"/></svg>',
+            2: '<svg viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#f8fafc" stroke="currentColor" stroke-width="3"/><circle cx="30" cy="30" r="10" fill="currentColor"/><circle cx="70" cy="70" r="10" fill="currentColor"/></svg>',
+            3: '<svg viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#f8fafc" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="25" r="10" fill="currentColor"/><circle cx="50" cy="50" r="10" fill="currentColor"/><circle cx="75" cy="75" r="10" fill="currentColor"/></svg>',
+            4: '<svg viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#f8fafc" stroke="currentColor" stroke-width="3"/><circle cx="30" cy="30" r="10" fill="currentColor"/><circle cx="70" cy="30" r="10" fill="currentColor"/><circle cx="30" cy="70" r="10" fill="currentColor"/><circle cx="70" cy="70" r="10" fill="currentColor"/></svg>',
+            5: '<svg viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#f8fafc" stroke="currentColor" stroke-width="3"/><circle cx="25" cy="25" r="10" fill="currentColor"/><circle cx="75" cy="25" r="10" fill="currentColor"/><circle cx="50" cy="50" r="10" fill="currentColor"/><circle cx="25" cy="75" r="10" fill="currentColor"/><circle cx="75" cy="75" r="10" fill="currentColor"/></svg>',
+            6: '<svg viewBox="0 0 100 100"><rect x="5" y="5" width="90" height="90" rx="20" fill="#f8fafc" stroke="currentColor" stroke-width="3"/><circle cx="30" cy="22" r="10" fill="currentColor"/><circle cx="30" cy="50" r="10" fill="currentColor"/><circle cx="30" cy="78" r="10" fill="currentColor"/><circle cx="70" cy="22" r="10" fill="currentColor"/><circle cx="70" cy="50" r="10" fill="currentColor"/><circle cx="70" cy="78" r="10" fill="currentColor"/></svg>'
+        };
+
+        const dadoDiv = document.getElementById('dado-svg');
+        const mensajeDiv = document.getElementById('mensaje');
+        let estaLanzando = false;
+
+        // Lógica de ID único por pestaña
+        if (window.location.search.includes('nuevo=1')) {
+            sessionStorage.removeItem('dado_jugador_id');
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        let miJugadorId = sessionStorage.getItem('dado_jugador_id');
+        if (!miJugadorId || miJugadorId === "null") {
+            miJugadorId = 'jugador_' + Math.random().toString(36).substring(2, 9);
+            sessionStorage.setItem('dado_jugador_id', miJugadorId);
+        }
+
+        function actualizarInterfaz(totales, totalLanzamientos) {
+            document.getElementById('total-text').innerText = totalLanzamientos;
+            const container = document.getElementById('contenedor-stats');
+            container.innerHTML = ''; 
+
+            for (let i = 0; i < 6; i++) {
+                const num = i + 1;
+                const veces = totales[i];
+                const pct = totalLanzamientos === 0 ? 0 : ((veces / totalLanzamientos) * 100).toFixed(4);
+                
+                container.innerHTML += `
+                    <div class="bg-slate-50 border border-slate-100 rounded-xl p-4 flex items-center gap-4">
+                        <div class="w-12 h-12 text-slate-400">${svgs[num]}</div>
+                        <div class="text-left">
+                            <div class="text-xl font-bold">${pct}%</div>
+                            <div class="text-sm text-slate-500">${veces} veces</div>
+                        </div>
+                    </div>`;
+            }
+        }
+
+        async function cargarEstadoInicial() {
+            try {
+                const res = await fetch('/api/estado');
+                const data = await res.json();
+                actualizarInterfaz(data.totales, data.lanzamientos);
+            } catch (error) {
+                console.error("Error al conectar con el servidor", error);
+            }
+        }
+
+        async function tirarDado() {
+            if (estaLanzando) return;
+            estaLanzando = true;
+
+            dadoDiv.classList.add('animacion-lanzar');
+            mensajeDiv.classList.add('opacity-0');
+
+            const intervalo = setInterval(() => {
+                dadoDiv.innerHTML = svgs[Math.floor(Math.random() * 6) + 1];
+            }, 80);
+
+            setTimeout(async () => {
+                clearInterval(intervalo);
+                dadoDiv.classList.remove('animacion-lanzar');
+
+                const miResultado = Math.floor(Math.random() * 6) + 1;
+                dadoDiv.innerHTML = svgs[miResultado]; 
+                
+                try {
+                    const res = await fetch('/api/lanzar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ resultado: miResultado, jugadorId: miJugadorId })
+                    });
+                    
+                    const data = await res.json();
+                    actualizarInterfaz(data.totales, data.lanzamientos);
+                    
+                    mensajeDiv.innerText = `¡Salió un ${miResultado}!`;
+                    mensajeDiv.classList.remove('opacity-0');
+                } catch (error) {
+                    console.error("Error al enviar el tiro", error);
+                }
+
+                estaLanzando = false;
+            }, 500);
+        }
+
+        // --- ACTUALIZACIÓN AUTOMÁTICA (Polling) ---
+        setInterval(() => {
+            if (!estaLanzando) {
+                cargarEstadoInicial();
+            }
+        }, 30000); // Cada 30 segundos
+
+        dadoDiv.innerHTML = svgs[1];
+        document.getElementById('btn-dado').addEventListener('click', tirarDado);
+        cargarEstadoInicial();
+
+    </script>
+</body>
+</html>
